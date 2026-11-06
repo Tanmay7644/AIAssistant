@@ -9,19 +9,22 @@ client = OpenAI(
     api_key=os.getenv("API_KEY")
 )
 
+messages = []
+
 while True:
     input_text = input("\nYOU: ")
+
 
     if input_text.lower() in ["exit", "quit", "bye"]:
         print("Exiting the chat. Goodbye!")
         break
 
+    messages.append({"role":"user","content":input_text})
+
     response = client.chat.completions.create(
         model = os.getenv("MODEL"),
-        messages=[
-            {"role": "system", 
-            "content": input_text},
-        ]
+        messages=messages
     )
 
+    messages.append({"role":"assistant","content":response.choices[0].message.content})
     print("Assistant: " + response.choices[0].message.content)
