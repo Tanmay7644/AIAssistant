@@ -34,6 +34,8 @@ while True:
 
     msg = response.choices[0].message
 
+    # print(msg)
+
     if msg.tool_calls:
 
         messages.append(msg)
@@ -66,6 +68,21 @@ while True:
         "content" : msg.content
     })
     print("Assistant: " + msg.content)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
