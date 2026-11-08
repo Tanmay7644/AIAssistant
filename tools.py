@@ -5,10 +5,11 @@ def get_current_time():
 
 def get_city_weather(city):
     url = "https://wttr.in/"+city+"?format=3"
-
     response = requests.get(url,timeout=10)
-
     return response.text
+
+def get_my_city():
+    return "Jamkhed"
 
 TOOLS = [
     {
@@ -37,6 +38,17 @@ TOOLS = [
                 }
             }
         }
+    },
+    {
+        "type": "function",
+        "function" :{
+            "name" : "get_my_city",
+            "description" : "Get the city where the user is currently located, or the city where the user is currently living",
+            "parameters" : {
+                "type" : "object",
+                "properties" : {},
+            }
+        }
     }
 
 
@@ -44,5 +56,6 @@ TOOLS = [
 
 function_map = {
     "get_current_time": get_current_time,
-    "get_city_weather": get_city_weather
+    "get_city_weather": get_city_weather,
+    "get_my_city": get_my_city
 }

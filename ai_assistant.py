@@ -13,7 +13,7 @@ client = OpenAI(
 
 messages = []
 
-messages.append({"role":"system","content":"You are a helpful assistant."})
+messages.append({"role":"system","content":"You are a funny assistant, and try answer every query under 25 words."})
 
 while True:
     input_text = input("\nYou: ");
@@ -26,27 +26,33 @@ while True:
         "content" : input_text
     })
 
-    response = client.chat.completions.create(
-        model = os.getenv("MODEL"),
-        messages = messages,
-        tools = TOOLS,
-    )
+    # Chained Tool Calling
 
-    msg = response.choices[0].message
+    while True:
+        response = client.chat.completions.create(
+                model = os.getenv("MODEL"),
+                messages = messages,
+                tools = TOOLS,
+            )
+        
+        msg = response.choices[0].message
 
-    # print(msg)
-
-    if msg.tool_calls:
+        if not msg.tool_calls:
+            break
 
         messages.append(msg)
 
         for tool_call in msg.tool_calls:
+            # handling exceptions for tool calls
             function_name = tool_call.function.name
-            function_args = json.loads(tool_call.function.arguments or "{}")   # convert string to dict 
+            function_args = {}
 
-            fn = function_map[function_name]
-
-            res = fn(**function_args)  # unpack the dict as keyword arguments
+            try:
+                function_args = json.loads(tool_call.function.arguments or "{}")   # convert string to dict 
+                fn = function_map[function_name]
+                res = fn(**function_args)  # unpack the dict as keyword arguments
+            except Exception as e:
+                res = f"Error calling tool {function_name}: {str(e)}"
 
             messages.append({
                 "role" : "tool",
@@ -55,18 +61,11 @@ while True:
             })
 
 
-        # 2nd call to LLM
-        response = client.chat.completions.create(
-            model = os.getenv("model"),
-            messages = messages
-        )
-
-        msg = response.choices[0].message
-
     messages.append({
         "role" : "assistant",
         "content" : msg.content
     })
+
     print("Assistant: " + msg.content)
 
 
