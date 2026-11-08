@@ -1,8 +1,13 @@
-import json
+# Standard Imports
+import os
+
+# Third Party Imports
 from openai import OpenAI
 from dotenv import load_dotenv
-import os
-from tools import TOOLS, function_map
+
+# Local Imports
+from tools import TOOLS, tool_call_handler
+from Utilities.utilities import log
 
 load_dotenv()
 
@@ -13,10 +18,10 @@ client = OpenAI(
 
 messages = []
 
-messages.append({"role":"system","content":"You are a funny assistant, and try answer every query under 25 words."})
+messages.append({"role":"system","content":"You are a helpful assistant, and try answer every query under 25 words."})
 
 while True:
-    input_text = input("\nYou: ");
+    input_text = input("\n🧑 You: ");
     if(input_text.lower() in ["exit", "quit", "bye"]):
         print("Exiting the chat. Goodbye!")
         break
@@ -26,9 +31,10 @@ while True:
         "content" : input_text
     })
 
+    maxSteps = 5
     # Chained Tool Calling
 
-    while True:
+    for step in range(maxSteps):
         response = client.chat.completions.create(
                 model = os.getenv("MODEL"),
                 messages = messages,
@@ -40,19 +46,15 @@ while True:
         if not msg.tool_calls:
             break
 
+        log(f"📝 Step {step+1}: Tool call detected. Model Requested {len(msg.tool_calls)} tool calls.")
+
         messages.append(msg)
 
         for tool_call in msg.tool_calls:
-            # handling exceptions for tool calls
-            function_name = tool_call.function.name
-            function_args = {}
 
-            try:
-                function_args = json.loads(tool_call.function.arguments or "{}")   # convert string to dict 
-                fn = function_map[function_name]
-                res = fn(**function_args)  # unpack the dict as keyword arguments
-            except Exception as e:
-                res = f"Error calling tool {function_name}: {str(e)}"
+            res = tool_call_handler(tool_call)  # Call the tool and get the result
+
+            log(f"  ↪️ Tool Call Result: {res}")
 
             messages.append({
                 "role" : "tool",
@@ -60,13 +62,22 @@ while True:
                 "content" : res
             })
 
+    else:      # The else block runs only if the loop finished normally, without break
+        fallback = "Maximum steps reached. Please try again with a simpler query."
+        messages.append({
+            "role" : "assistant",
+            "content" : fallback
+        })
+
+        print("🤖 Assistant: " + fallback)
+        continue
 
     messages.append({
         "role" : "assistant",
         "content" : msg.content
     })
 
-    print("Assistant: " + msg.content)
+    print("🤖 Assistant: " + msg.content)
 
 
 
