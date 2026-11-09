@@ -18,7 +18,7 @@ client = OpenAI(
 
 messages = []
 
-messages.append({"role":"system","content":"You are a helpful assistant, and try answer every query under 25 words."})
+messages.append({"role":"system","content":"You are a helpful assistant, and try answer every query in  details using bullet points."})
 
 while True:
     input_text = input("\n🧑 You: ");
