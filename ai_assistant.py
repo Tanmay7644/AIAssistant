@@ -1,5 +1,6 @@
 # Standard Imports
 import os
+from types import SimpleNamespace
 
 # Third Party Imports
 from openai import OpenAI
@@ -18,7 +19,91 @@ client = OpenAI(
 
 messages = []
 
-messages.append({"role":"system","content":"You are a helpful assistant, and try answer every query in  details using bullet points."})
+messages.append({"role":"system","content":"You are a helpful assistant, and try answer every query in details using bullet points."})
+
+def stream_chat(messages):
+    """
+    This function streams the chat response from the model and collects any tool calls made by the model.
+    """
+
+    stream = client.chat.completions.create(
+        model = os.getenv("MODEL"),
+        messages = messages,
+        tools = TOOLS,
+        stream = True
+    )  
+
+    full_response = ""
+    calls = {}
+    label_printed = False
+
+    try:
+        for chunk in stream:
+            if not chunk.choices:
+                continue
+
+            delta = chunk.choices[0].delta
+
+
+            # 1. content streaming
+            if delta.content:
+                if not label_printed:
+                    print("🤖 Assistant: ", end="", flush=True)
+                    label_printed = True
+
+                print(delta.content, end="", flush=True)
+
+                full_response += delta.content
+
+
+            # 2. tool call streaming
+            if delta.tool_calls:
+                for tc in delta.tool_calls:
+                        print(f"Tool Call Detected: {tc.function.name} with arguments: {tc.function.arguments}")
+                
+                        if tc.index not in calls:
+                            calls[tc.index] = SimpleNamespace(id = None, function = SimpleNamespace(name = "", arguments = ""))
+                
+                        obj = calls[tc.index]
+                
+                        if tc.id:
+                            obj.id = tc.id
+                        if tc.function.name:
+                            obj.function.name += tc.function.name
+                        if tc.function.arguments:
+                            obj.function.arguments += tc.function.arguments
+    except KeyboardInterrupt as e:
+        print("\nStreaming interrupted by user.")
+        calls = {} # Reset calls if interrupted
+
+    if label_printed:
+        print()  # Move to the next line after streaming is done
+
+    calls_list = []
+    for key in sorted(calls):
+        calls_list.append(calls[key])
+
+    return full_response, calls_list
+
+
+def build_tool_call_payload(tool_calls):
+    """
+    It converts collected tool calls (string format) into a structured payload that can be sent back to the model for further processing.
+    """
+
+    payload = []
+
+    for too_call in tool_calls:
+        payload.append({
+            "id": too_call.id,
+            "type": "function",
+            "function": {
+                "name": too_call.function.name,
+                "arguments": too_call.function.arguments
+            }
+        })
+
+    return payload
 
 while True:
     input_text = input("\n🧑 You: ");
@@ -35,22 +120,29 @@ while True:
     # Chained Tool Calling
 
     for step in range(maxSteps):
-        response = client.chat.completions.create(
-                model = os.getenv("MODEL"),
-                messages = messages,
-                tools = TOOLS,
-            )
-        
-        msg = response.choices[0].message
 
-        if not msg.tool_calls:
+        full_response, tool_calls = stream_chat(messages)
+
+        if not tool_calls:
             break
 
-        log(f"📝 Step {step+1}: Tool call detected. Model Requested {len(msg.tool_calls)} tool calls.")
+        log(f"📝 Step {step+1}: Tool call detected. Model Requested {len(tool_calls)} tool calls.")
 
-        messages.append(msg)
+        messages.append({
+            "role" : "assistant",
+            "content" : full_response,
+            "tool_call" : build_tool_call_payload(tool_calls)  # we need all payload
 
-        for tool_call in msg.tool_calls:
+                # tool_call => {
+                #     id: tool_call.id,
+                #     function: {
+                #         name: tool_call.name,
+                #         arguments: tool_call.arguments
+                #     }
+                # }
+        })
+
+        for tool_call in tool_calls:
 
             res = tool_call_handler(tool_call)  # Call the tool and get the result
 
@@ -72,47 +164,8 @@ while True:
         print("🤖 Assistant: " + fallback)
         continue
 
-    messages.append({
-        "role" : "assistant",
-        "content" : msg.content
-    })
-
-    print("🤖 Assistant: " + msg.content)
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Without Tool Calling
-
-# while True:
-#     input_text = input("\nYOU: ")
-
-
-#     if input_text.lower() in ["exit", "quit", "bye"]:
-#         print("Exiting the chat. Goodbye!")
-#         break
-
-#     messages.append({"role":"user","content":input_text})
-
-#     response = client.chat.completions.create(
-#         model = os.getenv("MODEL"),
-#         messages=messages
-#     )
-
-#     messages.append({"role":"assistant","content":response.choices[0].message.content})
-#     print("Assistant: " + response.choices[0].message.content)
