@@ -17,9 +17,13 @@ client = OpenAI(
     api_key=os.getenv("API_KEY")
 )
 
+
+with open("system_prompt.txt", "r", encoding="utf-8") as f:
+    SYSTEM_PROMPT = f.read()
+
 messages = []
 
-messages.append({"role":"system","content":"You are a helpful assistant, and try answer every query in details using bullet points."})
+messages.append({"role":"system","content":SYSTEM_PROMPT})
 
 def stream_chat(messages):
     """
@@ -124,6 +128,7 @@ while True:
         full_response, tool_calls = stream_chat(messages)
 
         if not tool_calls:
+            messages.append({"role": "assistant", "content": full_response})
             break
 
         log(f"📝 Step {step+1}: Tool call detected. Model Requested {len(tool_calls)} tool calls.")
@@ -131,7 +136,7 @@ while True:
         messages.append({
             "role" : "assistant",
             "content" : full_response,
-            "tool_call" : build_tool_call_payload(tool_calls)  # we need all payload
+            "tool_calls" : build_tool_call_payload(tool_calls)  # we need all payload
 
                 # tool_call => {
                 #     id: tool_call.id,
@@ -150,8 +155,8 @@ while True:
 
             messages.append({
                 "role" : "tool",
-                "tool_id" : tool_call.id,
-                "content" : res
+                "tool_call_id" : tool_call.id,
+                "content" : str(res)
             })
 
     else:      # The else block runs only if the loop finished normally, without break
@@ -163,9 +168,3 @@ while True:
 
         print("🤖 Assistant: " + fallback)
         continue
-
-
-
-
-
-

@@ -32,7 +32,7 @@ def load_documents(folder = KB_FOLDER):
     return documents
 
 
-# step 3: Add Embedding vector for each document
+# step 2: Add Embedding vector for each document
 
 def get_embedding(text):
     response = client.embeddings.create(
@@ -52,7 +52,7 @@ def add_embedding(documents):
 
     return documents
 
-# step 4: Searching top_k relevant documents
+# step 3: Searching relevant documents
 
 def cosine_similarity(A,B):
     lenA = numpy.linalg.norm(A)
@@ -77,6 +77,9 @@ def search(query,documents,top_k = 3):
 
     return results[:top_k]
 
+
+# step 4: Testing 
+
 def test(query,document,top_k=3):
     print(query)
 
@@ -89,6 +92,6 @@ def test(query,document,top_k=3):
 documents = load_documents(KB_FOLDER)
 documents = add_embedding(documents)
 
-query = "What are the working hours of company?"
+query = "How a candidate is hired?"
 
 test(query,documents,3)
