@@ -3,7 +3,7 @@ import numpy
 from openai import OpenAI
 from dotenv import load_dotenv
 import json
-
+  
 load_dotenv()
 
 client = OpenAI(
@@ -54,7 +54,7 @@ def cosine_similarity(A, B):
 
 def get_chunks(doc):
     chunks = []
-    chunk_id = 0;
+    chunk_id = 0
 
     for part in doc["text"].split("\n\n"):
         part = part.strip()
